@@ -70,34 +70,34 @@ st.markdown("""
     }
     
     h1, h2, h3 { 
-        color: #1E5631 !important; 
+        color: #81C784 !important; 
         font-weight: 700;
         letter-spacing: -0.5px;
     }
     
     /* Refined Neumorphic Metrics */
     div[data-testid="metric-container"] {
-        background: #FFFFFF;
-        border: 1px solid rgba(30, 86, 49, 0.05);
+        background: #1E1E1E;
+        border: 1px solid rgba(255, 255, 255, 0.05);
         padding: 24px !important;
         border-radius: 16px !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     }
     div[data-testid="metric-container"]:hover {
         transform: translateY(-4px);
-        box-shadow: 0 10px 30px rgba(30, 86, 49, 0.08) !important;
-        border-color: rgba(30, 86, 49, 0.2);
+        box-shadow: 0 10px 30px rgba(76, 175, 80, 0.15) !important;
+        border-color: rgba(76, 175, 80, 0.3);
     }
     
     /* Premium Success Box */
     .success-box {
         padding: 28px;
-        background: linear-gradient(145deg, #F9FDF6 0%, #E8F5E9 100%);
-        border-left: 6px solid #2E7D32;
+        background: linear-gradient(145deg, #1A2E1A 0%, #111D11 100%);
+        border-left: 6px solid #4CAF50;
         border-radius: 16px;
         margin: 24px 0;
-        box-shadow: 0 8px 24px rgba(46, 125, 50, 0.06);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
         animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     }
     
@@ -108,35 +108,39 @@ st.markdown("""
     
     /* Crisp Sidebar Styling */
     section[data-testid="stSidebar"] {
-        border-right: 1px solid rgba(0,0,0,0.05);
+        border-right: 1px solid rgba(255,255,255,0.05);
     }
     
     /* Force proper color mapping for sidebar text to combat defaults */
     section[data-testid="stSidebar"] .stMarkdown, 
     section[data-testid="stSidebar"] h1,
     section[data-testid="stSidebar"] h2 {
-        color: #2C3E50 !important;
+        color: #E0E0E0 !important;
     }
     
     /* Advanced Button Styling */
     .stButton>button {
+        background-color: #2E7D32;
+        color: #FFFFFF;
         border-radius: 12px;
         font-weight: 600;
         letter-spacing: 0.3px;
         transition: all 0.25s ease;
         border: none;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
     .stButton>button:hover {
+        background-color: #4CAF50;
+        color: #FFFFFF;
         transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(46, 125, 50, 0.15);
+        box-shadow: 0 6px 16px rgba(76, 175, 80, 0.2);
     }
     </style>
     """, unsafe_allow_html=True)
 
 # --- SIDEBAR NAVIGATION ---
 with st.sidebar:
-    st.markdown("<h2 style='color: #1E5631; font-weight: 700; margin-bottom: 0px;'>Krishi Veda</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #81C784; font-weight: 700; margin-bottom: 0px;'>Krishi Veda</h2>", unsafe_allow_html=True)
     st.markdown("<p style='color: #4CAF50; font-style: italic; font-size: 0.9em; margin-top: -5px;'>Intelligent Farm OS</p>", unsafe_allow_html=True)
     st.markdown("---")
     
@@ -229,7 +233,8 @@ if menu == "Dashboard":
                     paper_bgcolor="rgba(0,0,0,0)",
                     height=360,
                     font_family="Outfit",
-                    title_font_color="#1E5631",
+                    font_color="#E0E0E0",
+                    title_font_color="#81C784",
                     margin=dict(l=10, r=10, t=40, b=20)
                 )
                 st.plotly_chart(fig, use_container_width=True)
@@ -415,7 +420,8 @@ elif menu == "Profit Calculator":
                 paper_bgcolor="rgba(0,0,0,0)",
                 height=360,
                 font_family="Outfit",
-                title_font_color="#1E5631",
+                font_color="#E0E0E0",
+                title_font_color="#81C784",
                 margin=dict(l=10, r=10, t=40, b=20)
             )
             st.plotly_chart(fig, use_container_width=True)
