@@ -3,8 +3,10 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import time
-import random
-from datetime import date, timedelta
+import requests
+import joblib
+import database
+from datetime import date, timedelta, datetime
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
@@ -13,74 +15,129 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- SESSION STATE INITIALIZATION ---
-if 'expenses' not in st.session_state:
-    st.session_state['expenses'] = pd.DataFrame([
-        {'Category': 'Seeds', 'Amount': 2000, 'Date': date.today() - timedelta(days=5)},
-        {'Category': 'Fertilizer', 'Amount': 1500, 'Date': date.today() - timedelta(days=2)},
-        {'Category': 'Labor', 'Amount': 500, 'Date': date.today()}
-    ])
+# --- DATABASE INITIALIZATION ---
+import database # Ensure module is loaded
 
-if 'soil_history' not in st.session_state:
-    st.session_state['soil_history'] = []
+# --- AUTHENTICATION FLOW ---
+if 'user_id' not in st.session_state:
+    st.session_state['user_id'] = None
+    st.session_state['username'] = None
+    st.session_state['location'] = "Delhi"
+
+if st.session_state['user_id'] is None:
+    st.title("Welcome to Krishi Veda")
+    st.markdown("Please Login or Register to access your personalized Smart Farm OS.")
+    
+    t1, t2 = st.tabs(["Login", "Register"])
+    with t1:
+        with st.form("login_form"):
+            l_usr = st.text_input("Username")
+            l_pwd = st.text_input("Password", type="password")
+            if st.form_submit_button("Login"):
+                res = database.verify_login(l_usr, l_pwd)
+                if res:
+                    st.session_state['user_id'] = res['id']
+                    st.session_state['username'] = l_usr
+                    st.session_state['location'] = res['location']
+                    st.success("Login Successful!")
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.error("Invalid credentials.")
+    with t2:
+        with st.form("register_form"):
+            r_usr = st.text_input("Choose Username")
+            r_pwd = st.text_input("Choose Password", type="password")
+            r_loc = st.text_input("Farm Region (City)")
+            if st.form_submit_button("Create Profile"):
+                if r_usr and r_pwd and r_loc:
+                    if database.register_user(r_usr, r_pwd, r_loc):
+                        st.success("Profile created! Please switch to Login tab.")
+                    else:
+                        st.error("Username already taken. Please try another.")
+                else:
+                    st.error("Please fill all fields.")
+    st.stop()
 
 # --- CUSTOM THEME & CSS ---
 st.markdown("""
     <style>
-    /* Global Styles */
+    /* Premium Global Styling */
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Outfit', sans-serif;
+    }
+    
     h1, h2, h3 { 
-        color: #2E7D32 !important; 
-        font-family: 'Segoe UI', sans-serif; 
+        color: #1E5631 !important; 
+        font-weight: 700;
+        letter-spacing: -0.5px;
     }
     
-    /* Metrics Styling */
+    /* Refined Neumorphic Metrics */
     div[data-testid="metric-container"] {
-        background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        color: #333333; /* Force dark text for metrics */
+        background: #FFFFFF;
+        border: 1px solid rgba(30, 86, 49, 0.05);
+        padding: 24px !important;
+        border-radius: 16px !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 30px rgba(30, 86, 49, 0.08) !important;
+        border-color: rgba(30, 86, 49, 0.2);
     }
     
-    /* Custom Success Box */
+    /* Premium Success Box */
     .success-box {
-        padding: 20px;
-        background-color: #e8f5e9;
-        border-left: 5px solid #2e7d32;
-        border-radius: 5px;
-        margin-bottom: 20px;
-        color: #1b5e20; /* Force dark green text */
-    }
-    .success-box h3 {
-        margin-top: 0;
-        color: #1b5e20 !important;
-    }
-    .success-box p {
-        color: #2e7d32 !important;
+        padding: 28px;
+        background: linear-gradient(145deg, #F9FDF6 0%, #E8F5E9 100%);
+        border-left: 6px solid #2E7D32;
+        border-radius: 16px;
+        margin: 24px 0;
+        box-shadow: 0 8px 24px rgba(46, 125, 50, 0.06);
+        animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     }
     
-    /* Sidebar Styling */
+    @keyframes slideUpFade {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Crisp Sidebar Styling */
     section[data-testid="stSidebar"] {
-        background-color: #1b5e20;
+        border-right: 1px solid rgba(0,0,0,0.05);
     }
     
-    /* Force white text for all sidebar elements */
+    /* Force proper color mapping for sidebar text to combat defaults */
     section[data-testid="stSidebar"] .stMarkdown, 
-    section[data-testid="stSidebar"] .stRadio label,
-    section[data-testid="stSidebar"] p,
     section[data-testid="stSidebar"] h1,
-    section[data-testid="stSidebar"] h2,
-    section[data-testid="stSidebar"] h3 {
-        color: white !important;
+    section[data-testid="stSidebar"] h2 {
+        color: #2C3E50 !important;
+    }
+    
+    /* Advanced Button Styling */
+    .stButton>button {
+        border-radius: 12px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        transition: all 0.25s ease;
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(46, 125, 50, 0.15);
     }
     </style>
     """, unsafe_allow_html=True)
 
 # --- SIDEBAR NAVIGATION ---
 with st.sidebar:
-    st.markdown("## Krishi Veda")
-    st.markdown("*Intelligent Farm OS*")
+    st.markdown("<h2 style='color: #1E5631; font-weight: 700; margin-bottom: 0px;'>Krishi Veda</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #4CAF50; font-style: italic; font-size: 0.9em; margin-top: -5px;'>Intelligent Farm OS</p>", unsafe_allow_html=True)
     st.markdown("---")
     
     menu = st.radio(
@@ -89,8 +146,11 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    st.info("Status: System Online")
-    st.caption("v3.0.0 | Build: Ind-Agri")
+    st.info(f"User: {st.session_state['username']}")
+    st.caption(f"Location: {st.session_state['location']}")
+    if st.button("Logout"):
+        st.session_state['user_id'] = None
+        st.rerun()
 
 # =================================================================================
 # 1. DASHBOARD (HOME)
@@ -101,13 +161,15 @@ if menu == "Dashboard":
     
     # --- DYNAMIC DATA LOGIC ---
     
-    # 1. Total Expense
-    total_expense = st.session_state['expenses']['Amount'].sum()
+    # 1. Total Expense (from SQLite)
+    expenses_data = database.get_expenses(st.session_state['user_id'])
+    total_expense = sum([row[1] for row in expenses_data]) if expenses_data else 0
     
-    # 2. Soil Status
-    if st.session_state['soil_history']:
-        last_test = st.session_state['soil_history'][-1]['Date']
-        days_ago = (date.today() - last_test).days
+    # 2. Soil Status (from SQLite)
+    latest_soil = database.get_latest_soil_test(st.session_state['user_id'])
+    if latest_soil:
+        last_test_date = datetime.strptime(latest_soil[0], "%Y-%m-%d").date()
+        days_ago = (date.today() - last_test_date).days
         if days_ago == 0:
             soil_msg = "Tested Today"
             soil_delta = "Up to Date"
@@ -118,18 +180,30 @@ if menu == "Dashboard":
         soil_msg = "Pending"
         soil_delta = "Action Needed"
         
-    # 3. Weather (Simulated)
-    weather_options = [
-        ("Clear Sky", "No Rain Expected"),
-        ("Cloudy", "High Humidity (80%)"),
-        ("Light Rain", "Irrigation Not Needed"),
-        ("Windy", "15 km/h North")
-    ]
-    curr_weather = random.choice(weather_options)
+    # 3. Weather (Live API via Open-Meteo using Profile Location)
+    weather_city = st.session_state['location']
+    
+    @st.cache_data(ttl=3600)
+    def fetch_weather(city):
+        try:
+            geo_req_url = f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1"
+            geo_response = requests.get(geo_req_url).json()
+            if not geo_response.get("results"): return ("Unknown", "City not found")
+            lat = geo_response["results"][0]["latitude"]
+            lon = geo_response["results"][0]["longitude"]
+            weather_req_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
+            weather_response = requests.get(weather_req_url).json()
+            temp = weather_response["current_weather"]["temperature"]
+            wind = weather_response["current_weather"]["windspeed"]
+            return (f"{temp}°C", f"Wind: {wind} km/h")
+        except Exception:
+            return ("Error", "API Failed")
+            
+    curr_weather = fetch_weather(weather_city)
 
     # Top Metrics Row
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total Expense", f"Rs. {total_expense}", "This Month")
+    m1.metric("Total Expense", f"₹{total_expense:,.2f}", "Current Month")
     m2.metric("Weather (Live)", curr_weather[0], curr_weather[1])
     m3.metric("Soil Health", soil_msg, soil_delta)
     m4.metric("Govt Scheme", "PM-Kisan", "Active")
@@ -139,17 +213,26 @@ if menu == "Dashboard":
     
     with c1:
         st.subheader("Financial Tracker")
-        if not st.session_state['expenses'].empty:
-            fig = px.bar(
-                st.session_state['expenses'], 
-                x='Category', 
-                y='Amount', 
-                color='Category',
-                title="Expense Breakdown (Live Data)",
-                text='Amount'
-            )
-            fig.update_layout(plot_bgcolor="rgba(0,0,0,0)", height=350)
-            st.plotly_chart(fig, use_container_width=True)
+        if expenses_data:
+            df_exp = pd.DataFrame(expenses_data, columns=['Category', 'Amount', 'Date'])
+            with st.container(border=True):
+                fig = px.bar(
+                    df_exp, 
+                    x='Category', 
+                    y='Amount', 
+                    color='Category',
+                    color_discrete_sequence=['#2E7D32', '#4CAF50', '#81C784', '#A5D6A7', '#C8E6C9'],
+                    title="Expense Breakdown (Live Data)"
+                )
+                fig.update_layout(
+                    plot_bgcolor="rgba(0,0,0,0)", 
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    height=360,
+                    font_family="Outfit",
+                    title_font_color="#1E5631",
+                    margin=dict(l=10, r=10, t=40, b=20)
+                )
+                st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No expenses logged yet. Use the tool on the right.")
         
@@ -164,9 +247,8 @@ if menu == "Dashboard":
                 sub_btn = st.form_submit_button("Save Entry")
                 
                 if sub_btn:
-                    new_entry = pd.DataFrame([{'Category': cat, 'Amount': amt, 'Date': date.today()}])
-                    st.session_state['expenses'] = pd.concat([st.session_state['expenses'], new_entry], ignore_index=True)
-                    st.success("Entry Saved! Chart Updated.")
+                    database.add_expense(st.session_state['user_id'], cat, amt, str(date.today()))
+                    st.success("Entry Saved to DB! Chart Updated.")
                     time.sleep(1)
                     st.rerun()
 
@@ -196,70 +278,76 @@ elif menu == "Smart Crop Advisor":
     with col1:
         with st.form("soil_form"):
             st.subheader("Enter Lab Data")
-            n = st.slider("Nitrogen (N)", 0, 140, 50)
-            p = st.slider("Phosphorus (P)", 0, 145, 40)
-            k = st.slider("Potassium (K)", 0, 205, 30)
-            ph = st.slider("pH Level", 0.0, 14.0, 6.5)
-            rain = st.number_input("Rainfall (mm)", value=100)
-            temp = st.number_input("Avg Temp (C)", value=26)
+            n = st.slider("Nitrogen (N)", 0, 140, 50, help="Required for foliage and leaf growth.")
+            p = st.slider("Phosphorus (P)", 0, 145, 40, help="Crucial for root development and flowering.")
+            k = st.slider("Potassium (K)", 0, 205, 30, help="Enhances overall plant health and water regulation.")
+            ph = st.slider("pH Level", 0.0, 14.0, 6.5, help="Measure of soil acidity/alkalinity. Ideal for most crops is 6.0-7.0.")
+            rain = st.number_input("Rainfall (mm)", value=100, help="Average annual rainfall for your region.")
+            temp = st.number_input("Avg Temp (C)", value=26, help="Average temperature during the growing season.")
             
             submitted = st.form_submit_button("Analyze Soil")
 
     if submitted:
-        with col2:
-            st.subheader("Analysis Report")
-            
-            # 1. SOIL STATUS SUMMARY (Text Output)
-            st.markdown("#### Soil Nutrient Summary")
-            st.write("Here is the breakdown of your field's current status:")
-            
-            c1, c2, c3 = st.columns(3)
-            c1.info(f"**Nitrogen:** {n}")
-            c2.info(f"**Phosphorus:** {p}")
-            c3.info(f"**Potassium:** {k}")
-            
-            c4, c5 = st.columns(2)
-            c4.warning(f"**pH Level:** {ph}")
-            c5.warning(f"**Rainfall:** {rain} mm")
-            
-            st.markdown("---")
-            
-            # 2. LOGIC ENGINE
-            crop = ""
-            confidence = 0
-            
-            if rain > 150 and temp > 20:
-                crop = "Rice (Paddy)"
-                confidence = 92
-            elif 21 <= temp <= 35 and n > 70:
-                crop = "Cotton"
-                confidence = 88
-            elif temp < 25 and 20 <= rain <= 100:
-                crop = "Wheat"
-                confidence = 95
-            elif 18 <= temp <= 30 and rain > 50:
-                crop = "Maize"
-                confidence = 85
-            else:
-                crop = "Millets"
-                confidence = 90
-            
-            # 3. RESULT CARD
-            st.markdown(f"""
-            <div class="success-box">
-                <h3>Recommended: {crop}</h3>
-                <p>AI Confidence Score: <b>{confidence}%</b> based on NPK signature.</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # 4. FERTILIZER CALC
-            st.subheader("Fertilizer Recommendation")
-            st.success(f"**Key Input for {crop}:** Apply 2 bags Urea and 1 bag DAP per acre.")
-            st.write(f"**Why?** {crop} requires this specific balance to boost growth in your soil conditions (N={n}, P={p}).")
-            
-            # Save this result to history
-            st.session_state['soil_history'].append({'Date': date.today(), 'Crop': crop, 'Confidence': confidence})
-            st.caption(f"Record saved to session history. Total records: {len(st.session_state['soil_history'])}")
+        with st.spinner("Analyzing soil nutrients and climate patterns..."):
+            time.sleep(1.2) # Fake processing time for UX
+            with col2:
+                st.subheader("Analysis Report")
+                
+                # 1. SOIL STATUS SUMMARY (Visual Feedback Bars)
+                st.markdown("#### Soil Nutrient Summary")
+                
+                with st.container(border=True):
+                    csl1, csl2, csl3 = st.columns(3)
+                    csl1.metric("Nitrogen (N)", f"{n} kg/ha")
+                    csl1.progress(min(n/140, 1.0))
+                    
+                    csl2.metric("Phosphorus (P)", f"{p} kg/ha")
+                    csl2.progress(min(p/145, 1.0))
+                    
+                    csl3.metric("Potassium (K)", f"{k} kg/ha")
+                    csl3.progress(min(k/205, 1.0))
+                    
+                    csl4, csl5 = st.columns(2)
+                    csl4.metric("pH Level", ph)
+                    csl4.progress(min(ph/14.0, 1.0))
+                    
+                    csl5.metric("Rainfall", f"{rain} mm")
+                    csl5.progress(min(float(rain)/300.0, 1.0))
+                
+                st.markdown("---")
+                
+                # 2. ML LOGIC ENGINE
+                try:
+                    model = joblib.load('crop_model.pkl')
+                    features = pd.DataFrame(
+                        [[n, p, k, ph, float(rain), float(temp)]],
+                        columns=['N', 'P', 'K', 'pH', 'Rainfall', 'Temperature']
+                    )
+                    prediction = model.predict(features)[0]
+                    confidence_array = model.predict_proba(features)[0]
+                    confidence = round(max(confidence_array) * 100, 1)
+                    crop = prediction
+                except Exception as e:
+                    st.error("ML Model not found. Make sure to train it first!")
+                    crop = "Unknown"
+                    confidence = 0
+                
+                # 3. RESULT CARD
+                st.markdown(f"""
+                <div class="success-box">
+                    <h3>Recommended: {crop}</h3>
+                    <p>ML Confidence Score: <b>{confidence}%</b> based on dynamic Random Forest prediction.</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # 4. FERTILIZER CALC
+                st.subheader("Fertilizer Recommendation")
+                st.success(f"**Key Input for {crop}:** Apply standard basal dose.")
+                st.write(f"**Why?** The ML model determined {crop} is best suited for your NPK profile (N={n}, P={p}, K={k}) and regional climate (Rainfall={rain}mm, Temp={temp}°C).")
+                
+                # Save this result to history
+                database.add_soil_test(st.session_state['user_id'], str(date.today()), n, p, k, ph, rain, temp, crop, confidence)
+                st.caption("Record saved permanently to SQLite farm database.")
 
 # =================================================================================
 # 3. PROFIT CALCULATOR
@@ -318,8 +406,19 @@ elif menu == "Profit Calculator":
             'Category': ['Seeds', 'Fertilizer', 'Labor', 'Profit'],
             'Amount': [cost_seed, cost_fert, cost_labor, profit]
         })
-        fig = px.bar(cost_df, x='Category', y='Amount', color='Category', title="Cost vs Profit Analysis")
-        st.plotly_chart(fig, use_container_width=True)
+        with st.container(border=True):
+            fig = px.bar(cost_df, x='Category', y='Amount', color='Category', 
+                         color_discrete_sequence=['#4CAF50', '#81C784', '#A5D6A7', '#1E5631'],
+                         title="Cost vs Profit Analysis")
+            fig.update_layout(
+                plot_bgcolor="rgba(0,0,0,0)", 
+                paper_bgcolor="rgba(0,0,0,0)",
+                height=360,
+                font_family="Outfit",
+                title_font_color="#1E5631",
+                margin=dict(l=10, r=10, t=40, b=20)
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
 # =================================================================================
 # 4. ACTIVITY SCHEDULER
